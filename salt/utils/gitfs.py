@@ -21,6 +21,7 @@ import time
 import tornado.ioloop
 import weakref
 from datetime import datetime
+import re
 
 # Import salt libs
 import salt.utils.configparser
@@ -3025,6 +3026,17 @@ class GitPillar(GitBase):
                     else:
                         tgt = repo.get_checkout_target()
                         env = 'base' if tgt == repo.base else tgt
+                # If dynamic repo has a whitelist, then make sure the branch matches
+                if repo.branch == '__env__' and hasattr(repo, 'saltenv_whitelist'):
+                    if any(re.match(pat + '$', env) for pat in repo.saltenv_whitelist):
+                        log.debug(
+                            'env \'%s\' matches dynamic repo whitelist \'%s\'',
+                            env, repo.saltenv_whitelist)
+                    else:
+                        log.debug(
+                            'env \'%s\' fails dynamic repo whitelist \'%s\', skipping',
+                            env, repo.saltenv_whitelist)
+                        continue
                 if repo._mountpoint:
                     if self.link_mountpoint(repo):
                         self.pillar_dirs[repo.linkdir] = env
