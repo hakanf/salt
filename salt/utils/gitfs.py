@@ -1136,12 +1136,17 @@ class GitPython(GitProvider):
             head_sha = None
 
         # 'origin/' + tgt_ref ==> matches a branch head
-        # 'tags/' + tgt_ref + '@{commit}' ==> matches tag's commit
-        for rev_parse_target, checkout_ref in (
-                ('origin/' + tgt_ref, 'origin/' + tgt_ref),
-                ('tags/' + tgt_ref, 'tags/' + tgt_ref)):
+        # 'tags/' + tgt_ref ==> matches tag's commit
+        checkout_refs = [
+                ('origin/' + tgt_ref, False),
+                ('tags/' + tgt_ref, False)]
+        if self.fallback:
+            checkout_refs.extend([
+                ('origin/' + self.fallback, True),
+                ('tags/' + self.fallback, True)])
+        for checkout_ref, fallback in checkout_refs:
             try:
-                target_sha = self.repo.rev_parse(rev_parse_target).hexsha
+                target_sha = self.repo.rev_parse(checkout_ref).hexsha
             except Exception:
                 # ref does not exist
                 continue
@@ -1154,10 +1159,11 @@ class GitPython(GitProvider):
                 with self.gen_lock(lock_type='checkout'):
                     self.repo.git.checkout(checkout_ref)
                     log.debug(
-                        '%s remote \'%s\' has been checked out to %s',
+                        '%s remote \'%s\' has been checked out to %s%s',
                         self.role,
                         self.id,
-                        checkout_ref
+                        checkout_ref,
+                        ' as fallback' if fallback else ''
                     )
             except GitLockError as exc:
                 if exc.errno == errno.EEXIST:
@@ -1217,6 +1223,8 @@ class GitPython(GitProvider):
         '''
         ret = set()
         tree = self.get_tree(tgt_env)
+        if not tree and self.fallback:
+            tree = self.get_tree(self.fallback)
         if not tree:
             return ret
         if self.root(tgt_env):
@@ -1289,6 +1297,8 @@ class GitPython(GitProvider):
         files = set()
         symlinks = {}
         tree = self.get_tree(tgt_env)
+        if not tree and self.fallback:
+            tree = self.get_tree(self.fallback)
         if not tree:
             # Not found, return empty objects
             return files, symlinks
@@ -1321,6 +1331,8 @@ class GitPython(GitProvider):
         Find the specified file in the specified environment
         '''
         tree = self.get_tree(tgt_env)
+        if not tree and self.fallback:
+            tree = self.get_tree(self.fallback)
         if not tree:
             # Branch/tag/SHA not found in repo
             return None, None, None
@@ -2915,9 +2927,10 @@ class GitFS(GitBase):
             return cache_match
         if refresh_cache:
             ret = {'files': set(), 'symlinks': {}, 'dirs': set()}
-            if salt.utils.stringutils.is_hex(load['saltenv']) \
-                    or load['saltenv'] in self.envs():
-                for repo in self.remotes:
+            for repo in self.remotes:
+                if salt.utils.stringutils.is_hex(load['saltenv']) \
+                        or load['saltenv'] in self.envs() \
+                        or repo.fallback:
                     repo_files, repo_symlinks = repo.file_list(load['saltenv'])
                     ret['files'].update(repo_files)
                     ret['symlinks'].update(repo_symlinks)

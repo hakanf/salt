@@ -368,7 +368,7 @@ from salt.pillar import Pillar
 # Import third party libs
 from salt.ext import six
 
-PER_REMOTE_OVERRIDES = ('env', 'root', 'ssl_verify', 'refspecs')
+PER_REMOTE_OVERRIDES = ('env', 'root', 'ssl_verify', 'refspecs', 'fallback')
 PER_REMOTE_ONLY = ('name', 'mountpoint', 'all_saltenvs', 'saltenv_whitelist')
 GLOBAL_ONLY = ('base', 'branch')
 
