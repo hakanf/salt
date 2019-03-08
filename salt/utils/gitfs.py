@@ -529,12 +529,11 @@ class GitProvider(object):
                             'The per-saltenv configuration has mapped the '
                             '\'%s\' branch/tag to saltenv \'%s\' for %s '
                             'remote \'%s\', but this remote has '
-                            'all_saltenvs set to \'%s\'. The all_saltenv '
+                            'all_saltenvs set to \'%s\'. The per-saltenv '
                             'mapping will be ignored in favor of \'%s\'.',
                             per_saltenv_ref, tgt_env, self.role, self.id,
-                            all_saltenvs_ref, per_saltenv_ref
+                            all_saltenvs_ref, all_saltenvs_ref
                         )
-                        return per_saltenv_ref
                     return all_saltenvs_ref
                 except AttributeError:
                     # all_saltenvs not configured for this remote
